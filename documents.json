@@ -1,11 +1,76 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
-    "file": "name",
+    "name": "complaint-file",
+    "title": "Complaint file",
+    "for_each": "select id, ref from complaints order by ref",
+    "file": "ref",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "The complaint",
+        "sql": "select ref, brand, complainant, complainant_type, received_on as received, channel, complaint_type as type, product, representative, summary, owner, status from complaint_register where id = $1"
+      },
+      {
+        "title": "Deadlines and what was sent",
+        "sql": "select d.acknowledge_by, d.acknowledged_on, d.respond_by, d.delay_notice_on, d.resolved_on, d.response_on, d.rule from complaint_deadlines d where d.id = $1"
+      },
+      {
+        "title": "Issues",
+        "sql": "select issue from complaint_issues where complaint_id = $1 order by issue"
+      },
+      {
+        "title": "Outcomes and remedies",
+        "sql": "select outcome, to_char(remedy_cents / 100.0, 'FM999,999,990.00') as remedy from complaint_outcomes where complaint_id = $1 order by outcome"
+      },
+      {
+        "title": "Contact log",
+        "sql": "select on_date as date, case direction when 'in' then 'from complainant' else 'to complainant' end as direction, method, note, by_whom as by from contacts where complaint_id = $1 order by on_date, created_at"
+      },
+      {
+        "title": "Record history",
+        "sql": "select created_at as at, action, actor from activity where entity_id = $1::text order by created_at, id",
+        "note": "The file AFCA or FSCL asks for when a complaint is escalated. Keep it with the complaint."
+      }
+    ]
+  },
+  {
+    "name": "board-pack",
+    "title": "Complaints report to the board",
+    "for_each": "select code as id, code from reporting_periods order by starts_on",
+    "file": "code",
+    "sections": [
+      {
+        "title": "The period",
+        "sql": "select code, starts_on, ends_on, due_on as asic_due, submitted_on as lodged, submission_ref as receipt from reporting_periods where code = $1"
+      },
+      {
+        "title": "Complaints by brand",
+        "sql": "select brand, count(*) as complaints, count(*) filter (where status = 'open') as still_open, count(*) filter (where escalated_on is not null) as to_scheme, round(avg(days_to_close)) as avg_days_to_close from idr_period_rows where period = $1 group by brand order by brand"
+      },
+      {
+        "title": "Most common issues",
+        "sql": "select i.issue, count(*) as complaints from idr_period_rows r join complaint_issues i on i.complaint_id = r.id where r.period = $1 group by i.issue order by complaints desc, i.issue limit 8"
+      },
+      {
+        "title": "Systemic issues",
+        "sql": "select code, title, status, raised_on, reported_to, complaints from systemic_register where $1::text is not null order by status, raised_on",
+        "note": "RG 271 expects complaints data and systemic issues to reach senior management and the board."
+      }
+    ]
+  },
+  {
+    "name": "systemic-issue",
+    "title": "Systemic issue report",
+    "for_each": "select id, code from systemic_issues order by code",
+    "file": "code",
+    "sections": [
+      {
+        "title": "The issue",
+        "sql": "select code, title, description, owner, status, raised_on, reported_to, reported_on, root_cause from systemic_issues where id = $1"
+      },
+      {
+        "title": "Complaints linked to it",
+        "sql": "select r.ref, r.brand, r.received_on, r.product, r.status, to_char(coalesce(r.remedy_cents, 0) / 100.0, 'FM999,999,990.00') as remedy from complaint_register r join complaints c on c.id = r.id where c.systemic_issue_id = $1 order by r.received_on"
+      }
     ]
   }
 ]

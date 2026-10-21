@@ -1,13 +1,46 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "Complaints for Claude Code: what needs attention, rendered by npm run view",
+    "title": "Complaints this week",
+    "subtitle": "What needs a person, worst first. Read-only. Changes are made by asking Claude Code.",
     "sections": [
       {
         "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "sql": "select item, ref, brand, owner, detail, due_on as due from attention_queue order by rank, due_on, ref"
+      },
+      {
+        "title": "Responses due in the next 14 days",
+        "sql": "select ref, brand, complainant, owner, complaint_type as type, respond_by as due, days_left from open_complaints where days_left <= 14 order by respond_by, ref"
+      }
+    ]
+  },
+  {
+    "name": "deadlines",
+    "title": "Every open complaint and its clock",
+    "sections": [
+      {
+        "title": "Open complaints",
+        "sql": "select ref, brand, complainant, owner, received_on as received, acknowledged_on as acknowledged, checkpoint_on as nz_checkpoint, respond_by as due, days_left, delay_notice_on as delay_notice, rule from open_complaints order by respond_by, ref",
+        "note": "Timeframes come from the idr_timeframes table: RG 271 Table 2 in Australia, the FSCL Terms of Reference in New Zealand."
+      }
+    ]
+  },
+  {
+    "name": "board",
+    "title": "Complaints for the board",
+    "subtitle": "Systemic issues, rule checks and remedies.",
+    "sections": [
+      {
+        "title": "Systemic issues",
+        "sql": "select code, title, owner, status, raised_on as raised, reported_to, reported_on, complaints, open_complaints from systemic_register order by status, raised_on"
+      },
+      {
+        "title": "Rule checks",
+        "sql": "select severity, rule, ref, brand, finding from compliance_findings order by case severity when 'breach' then 0 else 1 end, rule, ref"
+      },
+      {
+        "title": "Complaints and remedies by product",
+        "sql": "select product, currency, count(*) as complaints, count(*) filter (where status = 'open') as open, to_char(coalesce(sum(remedy_cents), 0) / 100.0, 'FM999,999,990.00') as remedies from complaint_register group by product, currency order by complaints desc, product"
       }
     ]
   }
