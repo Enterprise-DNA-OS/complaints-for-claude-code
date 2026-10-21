@@ -7,7 +7,11 @@
     "sections": [
       {
         "title": "The complaint",
-        "sql": "select ref, brand, complainant, complainant_type, received_on as received, channel, complaint_type as type, product, representative, summary, owner, status from complaint_register where id = $1"
+        "sql": "select ref, brand, complainant, received_on as received, channel, complaint_type as type, product, owner, status from complaint_register where id = $1"
+      },
+      {
+        "title": "What they said",
+        "sql": "select summary, coalesce(representative, 'not about a representative') as representative, coalesce(vulnerability, 'none recorded') as vulnerability from complaint_register where id = $1"
       },
       {
         "title": "Deadlines and what was sent",
